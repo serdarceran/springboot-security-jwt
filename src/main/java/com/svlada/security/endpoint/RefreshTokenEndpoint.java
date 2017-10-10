@@ -1,6 +1,8 @@
 package com.svlada.security.endpoint;
 
 import java.io.IOException;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,11 +13,14 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.codec.Base64;
+import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -48,7 +53,7 @@ public class RefreshTokenEndpoint {
     @Autowired private UserService userService;
     @Autowired private TokenVerifier tokenVerifier;
     @Autowired @Qualifier("jwtHeaderTokenExtractor") private TokenExtractor tokenExtractor;
-    
+
     @RequestMapping(value="/api/auth/token", method=RequestMethod.GET, produces={ MediaType.APPLICATION_JSON_VALUE })
     public @ResponseBody JwtToken refreshToken(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         String tokenPayload = tokenExtractor.extract(request.getHeader(WebSecurityConfig.JWT_TOKEN_HEADER_PARAM));
@@ -72,5 +77,19 @@ public class RefreshTokenEndpoint {
         UserContext userContext = UserContext.create(user.getUsername(), authorities);
 
         return tokenFactory.createAccessJwtToken(userContext);
+    }
+
+    @RequestMapping(value="/api/auth/publicKey", method=RequestMethod.GET, produces={ MediaType.APPLICATION_JSON_VALUE })
+    public @ResponseBody
+    String publicKey() throws IOException, ServletException {
+
+        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(
+                new ClassPathResource("jwt.jks"),
+                "mySecretKey".toCharArray());
+
+        return  "-----BEGIN PUBLIC KEY-----" +
+                new String(Base64.encode(keyStoreKeyFactory.getKeyPair("jwt").getPublic().getEncoded()))
+                + "-----END PUBLIC KEY-----";
+
     }
 }

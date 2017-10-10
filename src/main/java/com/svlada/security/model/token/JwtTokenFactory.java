@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
 import org.springframework.stereotype.Component;
 
 import com.svlada.security.config.JwtSettings;
@@ -53,7 +55,13 @@ public class JwtTokenFactory {
         claims.put("scopes", userContext.getAuthorities().stream().map(s -> s.toString()).collect(Collectors.toList()));
 
         LocalDateTime currentTime = LocalDateTime.now();
-        
+
+
+        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(
+                new ClassPathResource("jwt.jks"),
+                "mySecretKey".toCharArray());
+
+
         String token = Jwts.builder()
           .setClaims(claims)
           .setIssuer(settings.getTokenIssuer())
@@ -61,7 +69,7 @@ public class JwtTokenFactory {
           .setExpiration(Date.from(currentTime
               .plusMinutes(settings.getTokenExpirationTime())
               .atZone(ZoneId.systemDefault()).toInstant()))
-          .signWith(SignatureAlgorithm.HS512, settings.getTokenSigningKey())
+          .signWith(SignatureAlgorithm.RS256, keyStoreKeyFactory.getKeyPair("jwt").getPrivate())
         .compact();
 
         return new AccessJwtToken(token, claims);
